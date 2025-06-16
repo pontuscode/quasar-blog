@@ -147,6 +147,29 @@
   import Underline from '@tiptap/extension-underline';
   import FontFamily from '@tiptap/extension-font-family';
   import StarterKit from '@tiptap/starter-kit';
+  import Collaboration from "@tiptap/extension-collaboration";
+  import { HocuspocusProvider } from "@hocuspocus/provider";
+
+
+  const serverHostname = import.meta.env.VITE_SERVER_HOSTNAME || "localhost";
+  const serverPort = import.meta.env.VITE_SERVER_PORT || 8787;
+
+  const provider = new HocuspocusProvider({
+    url: `ws://${serverHostname}:${serverPort}/collaboration`,
+    name: "my-document"
+  });
+
+  provider.on("sync", () => {
+    console.log("Document synced!");
+  });
+
+  provider.on("status", (status) => {
+    console.log("WebSocket status:", status);
+  });
+
+  provider.on("error", (error) => {
+    console.log(error);
+  });
 
   const editor = useEditor({
     extensions: [
@@ -164,13 +187,19 @@
       Image.configure({}),
       Underline.configure({}),
       FontFamily.configure({}),
+      Collaboration.configure({ document: provider.document, user: { name: "John Doe", color: "#ffcc00" }, }),
     ]
   });
 
   onMounted(() => {
     console.log("Editor mounted!");
   });
-  onBeforeUnmount(() => editor.value?.destroy());
+  onBeforeUnmount(() => {
+    console.log("Tearing down editor.");
+    provider.destroy();  // Close WebSocket connection
+    // ydoc.destroy();      // Free up memory used by Yjs document
+    editor.value?.destroy()
+  });
 </script>
 
 <style lang="css" scoped>
@@ -243,11 +272,6 @@
   border-radius: 3px; /* A very subtle rounding of corners looks better */
   box-shadow: 0 0 15px rgba(0,0,0,0.1); /* A soft shadow to lift it off the page */
 
-}
-
-.editor-paragraph {
-  margin: 1em 1em 1em 1em;
-  padding: 1em 1em 1em 1em;
 }
 
 .menu-bar {
